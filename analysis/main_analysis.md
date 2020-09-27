@@ -6,7 +6,7 @@
 
 **Author:** [Vivek](mailto:vir@stowers.org)
 
-**Generated:** Sat Sep 26 2020, 09:57 PM
+**Generated:** Sun Sep 27 2020, 09:03 PM
 
 ## Overview
 
@@ -60,7 +60,7 @@ Table: Summary of late-induced genes
 
 Below are the top 5 GO categories for each gene group (excluding categories that contain 5 or less genes). The full results are in the output folder for this document as `go_results.xls`.
 
-
+![plot of chunk go_analysis](main_analysis/go_analysis-1.png)
 
 ## Dividing genes by Pol II presence in different tissues
 
@@ -477,7 +477,7 @@ Table: Alternate groups for late-induced genes
 ## alternative hypothesis: true location shift is not equal to 0
 ```
 ## Go analysis tata and highly paused genes
-
+![plot of chunk go_analysis_tata_paused](main_analysis/go_analysis_tata_paused-1.png)![plot of chunk go_analysis_tata_paused](main_analysis/go_analysis_tata_paused-2.png)
 
 
 ## ATAC 14-17h
@@ -709,8 +709,6 @@ Table: ATAC samples
 
 
 
-
-
 ## Session information
 
 For reproducibility, this analysis was performed with the following R/Bioconductor session:
@@ -778,51 +776,51 @@ other attached packages:
 loaded via a namespace (and not attached):
  [1] colorspace_1.4-1              ellipsis_0.3.1               
  [3] biovizBase_1.26.0             htmlTable_1.11.2             
- [5] markdown_0.8                  base64enc_0.1-3              
- [7] dichromat_2.0-0               rstudioapi_0.7               
- [9] farver_2.0.3                  bit64_0.9-7                  
-[11] fansi_0.4.1                   interactiveDisplayBase_1.16.0
-[13] splines_3.4.4                 geneplotter_1.56.0           
-[15] knitr_1.20                    Formula_1.2-3                
-[17] Rsamtools_1.30.0              annotate_1.56.2              
-[19] GO.db_3.5.0                   cluster_2.0.7-1              
-[21] shiny_1.1.0                   compiler_3.4.4               
-[23] httr_1.3.1                    backports_1.1.2              
-[25] assertthat_0.2.1              lazyeval_0.2.1               
-[27] cli_2.0.2                     later_0.7.2                  
-[29] acepack_1.4.1                 htmltools_0.3.6              
-[31] prettyunits_1.1.1             tools_3.4.4                  
-[33] gtable_0.3.0                  glue_1.4.2                   
-[35] GenomeInfoDbData_1.0.0        Rcpp_0.12.16                 
-[37] vctrs_0.3.3                   stringr_1.3.1                
-[39] mime_0.5                      lifecycle_0.2.0              
-[41] ensembldb_2.2.2               XML_3.98-1.11                
-[43] AnnotationHub_2.10.1          zlibbioc_1.24.0              
-[45] VariantAnnotation_1.24.5      BiocInstaller_1.28.0         
-[47] promises_1.0.1                ProtGenerics_1.10.0          
-[49] RBGL_1.54.0                   rhdf5_2.22.0                 
-[51] AnnotationFilter_1.2.0        RColorBrewer_1.1-2           
-[53] yaml_2.1.19                   curl_3.2                     
-[55] memoise_1.1.0                 biomaRt_2.34.2               
-[57] rpart_4.1-13                  latticeExtra_0.6-28          
-[59] stringi_1.2.2                 RSQLite_2.1.0                
-[61] highr_0.6                     genefilter_1.60.0            
-[63] RMySQL_0.10.15                checkmate_1.8.5              
-[65] BiocParallel_1.12.0           rlang_0.4.7                  
-[67] pkgconfig_2.0.3               bitops_1.0-6                 
-[69] evaluate_0.14                 purrr_0.3.4                  
-[71] labeling_0.3                  GenomicAlignments_1.14.2     
-[73] htmlwidgets_1.2               bit_1.1-13                   
-[75] tidyselect_1.1.0              AnnotationForge_1.20.0       
-[77] GSEABase_1.40.1               plyr_1.8.4                   
-[79] R6_2.4.1                      generics_0.0.2               
-[81] Hmisc_4.1-1                   DBI_1.0.0                    
-[83] pillar_1.4.6                  foreign_0.8-70               
-[85] survival_2.42-3               RCurl_1.95-4.10              
-[87] nnet_7.3-12                   tibble_3.0.3                 
-[89] crayon_1.3.4                  progress_1.1.2               
-[91] locfit_1.5-9.1                data.table_1.11.2            
-[93] Rgraphviz_2.22.0              blob_1.1.1                   
-[95] digest_0.6.25                 xtable_1.8-2                 
-[97] httpuv_1.4.3                  munsell_0.5.0                
+ [5] base64enc_0.1-3               dichromat_2.0-0              
+ [7] rstudioapi_0.7                farver_2.0.3                 
+ [9] bit64_0.9-7                   fansi_0.4.1                  
+[11] interactiveDisplayBase_1.16.0 splines_3.4.4                
+[13] geneplotter_1.56.0            knitr_1.20                   
+[15] Formula_1.2-3                 Rsamtools_1.30.0             
+[17] annotate_1.56.2               GO.db_3.5.0                  
+[19] cluster_2.0.7-1               shiny_1.1.0                  
+[21] compiler_3.4.4                httr_1.3.1                   
+[23] backports_1.1.2               assertthat_0.2.1             
+[25] lazyeval_0.2.1                cli_2.0.2                    
+[27] later_0.7.2                   acepack_1.4.1                
+[29] htmltools_0.3.6               prettyunits_1.1.1            
+[31] tools_3.4.4                   gtable_0.3.0                 
+[33] glue_1.4.2                    GenomeInfoDbData_1.0.0       
+[35] Rcpp_0.12.16                  vctrs_0.3.3                  
+[37] stringr_1.3.1                 mime_0.5                     
+[39] lifecycle_0.2.0               ensembldb_2.2.2              
+[41] XML_3.98-1.11                 AnnotationHub_2.10.1         
+[43] zlibbioc_1.24.0               VariantAnnotation_1.24.5     
+[45] BiocInstaller_1.28.0          promises_1.0.1               
+[47] ProtGenerics_1.10.0           RBGL_1.54.0                  
+[49] rhdf5_2.22.0                  AnnotationFilter_1.2.0       
+[51] RColorBrewer_1.1-2            yaml_2.1.19                  
+[53] curl_3.2                      memoise_1.1.0                
+[55] biomaRt_2.34.2                rpart_4.1-13                 
+[57] latticeExtra_0.6-28           stringi_1.2.2                
+[59] RSQLite_2.1.0                 highr_0.6                    
+[61] genefilter_1.60.0             RMySQL_0.10.15               
+[63] checkmate_1.8.5               BiocParallel_1.12.0          
+[65] rlang_0.4.7                   pkgconfig_2.0.3              
+[67] bitops_1.0-6                  evaluate_0.14                
+[69] purrr_0.3.4                   labeling_0.3                 
+[71] GenomicAlignments_1.14.2      htmlwidgets_1.2              
+[73] bit_1.1-13                    tidyselect_1.1.0             
+[75] AnnotationForge_1.20.0        GSEABase_1.40.1              
+[77] plyr_1.8.4                    R6_2.4.1                     
+[79] generics_0.0.2                Hmisc_4.1-1                  
+[81] DBI_1.0.0                     pillar_1.4.6                 
+[83] foreign_0.8-70                survival_2.42-3              
+[85] RCurl_1.95-4.10               nnet_7.3-12                  
+[87] tibble_3.0.3                  crayon_1.3.4                 
+[89] progress_1.1.2                locfit_1.5-9.1               
+[91] data.table_1.11.2             Rgraphviz_2.22.0             
+[93] blob_1.1.1                    digest_0.6.25                
+[95] xtable_1.8-2                  httpuv_1.4.3                 
+[97] munsell_0.5.0                
 ```

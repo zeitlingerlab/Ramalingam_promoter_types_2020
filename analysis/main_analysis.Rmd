@@ -130,7 +130,7 @@ rnaseq2 %>% dplyr::select(fb_gene_id,log2FoldChange,pvalue,padj,wt_2to4h,wt_14to
 Below are the top 5 GO categories for each gene group (excluding categories that contain 5 or less genes). The full results are in the output folder for this document as `go_results.xls`.
 
 ```{r go_analysis, results="asis"}
-go_term_analysis<-function(){panderOptions('knitr.auto.asis', FALSE)
+go_term_analysis<-function(){ panderOptions('knitr.auto.asis', FALSE)
 
 gene_groups <- list("Late-induced genes"=late_genes$fb_gene_id,
                     "Housekeeping genes"=hk_genes$fb_gene_id)
@@ -151,18 +151,22 @@ for(i in unique(go_results$gene_group)) {
     pander(caption=paste0("Gene group: ", i))
 }
 
-write.table(go_results, file=figure_path("go_results.xls"), quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
+write.csv(go_results, file=figure_path("go_results.csv"))
+}
+
+if(!file.exists(figure_path("go_results.csv"))){go_term_analysis()}
 
 #Late genes go terms figure based on excel sheet
 
-data.frame(term=c("chitin-based cuticle development","amino sugar metabolic process","anterograde trans-synaptic signaling","muscle system process"),p_value=c(29,22,8,6)) ->dfs
+read.csv(figure_path("go_results.csv")) ->dfs
 
-dfs$term %<>% factor(c("muscle system process","anterograde trans-synaptic signaling","amino sugar metabolic process","chitin-based cuticle development"))
+dfs %<>% filter(Term %in% c("locomotory behavior","proteolysis","muscle system process","anterograde trans-synaptic signaling","amino sugar metabolic process","chitin-based cuticle development")) 
 
-dfs %>% ggplot(aes(term,p_value))+geom_bar(stat="identity") + coord_flip()
-}
+dfs$Term %<>% factor(c("locomotory behavior","proteolysis","muscle system process","anterograde trans-synaptic signaling","amino sugar metabolic process","chitin-based cuticle development"))
 
-if(!file.exists(figure_path("go_results.xls"))){go_term_analysis()}
+dfs$Pvalue %<>% {log10(.) *(-1)}
+
+dfs %>% ggplot(aes(Term,Pvalue))+geom_bar(stat="identity") + coord_flip()
 ```
 
 ## Dividing genes by Pol II presence in different tissues
@@ -705,8 +709,7 @@ calculate_lengths_pvalue(rnaseq_4_groups, '0 tissues','5-6 tissues','width','two
 ## Go analysis tata and highly paused genes
 ```{r go_analysis_tata_paused, results="asis"}
 
-go_term_analysis_tata_paused<-function(){
-panderOptions('knitr.auto.asis', FALSE)
+go_term_analysis_tata_paused<-function(){panderOptions('knitr.auto.asis', FALSE)
 
 gene_groups <- list("TATA genes"=rnaseq_4_groups[[1]],
                     "Paused genes"=rnaseq_4_groups[[4]])
@@ -727,24 +730,26 @@ for(i in unique(go_results$gene_group)) {
     pander(caption=paste0("Gene group: ", i))
 }
 
-write.table(go_results, file=figure_path("Dataset_EV9_go_results_tata_paused.xls"), quote=FALSE, row.names=FALSE, col.names=TRUE, sep="\t")
+write.csv(go_results, file=figure_path("Dataset_EV9_go_results_tata_paused.csv"))
 
-#TATA genes go terms figure based on excel sheet
-data.frame(term=c("chitin-based cuticle development","amino sugar metabolic process","cell wall macromolecule","body morphogenesis"),p_value=c(26,13,4,2)) ->dfs
 
-dfs$term %<>% factor(c("body morphogenesis","cell wall macromolecule","amino sugar metabolic process","chitin-based cuticle development"))
-
-dfs %>% ggplot(aes(term,p_value))+geom_bar(stat="identity") + coord_flip()
-
-#Paused genes go terms figure based on excel sheet
-data.frame(term=c("chitin-based embryonic cuticle biosynthesis","amino sugar metabolic process","developmental process","cell communication"),p_value=c(6,5,5,5)) ->dfs
-
-dfs$term %<>% factor(c("cell communication","developmental process","amino sugar metabolic process","chitin-based embryonic cuticle biosynthesis"))
-
-dfs %>% ggplot(aes(term,p_value))+geom_bar(stat="identity") + coord_flip()
 }
-if(!file.exists(figure_path("Dataset_EV9_go_results_tata_paused.xls"))){go_term_analysis_tata_paused()}
+if(!file.exists(figure_path("Dataset_EV9_go_results_tata_paused.csv"))){go_term_analysis_tata_paused()}
 
+
+#Late genes go terms figure based on excel sheet
+
+read.csv(figure_path("Dataset_EV9_go_results_tata_paused.csv")) ->dfs
+
+dfs %<>% filter(Term %in% c("chitin-based cuticle development","proteolysis","amino sugar metabolic process","cell wall macromolecule catabolic process","","body morphogenesis","defense response to Gram-positive bacterium","chitin-based embryonic cuticle biosynthetic process","phenol-containing compound metabolic process","generation of neurons","response to wounding","learning or memory")) 
+
+dfs$Term %<>% factor(c("learning or memory","response to wounding","generation of neurons","phenol-containing compound metabolic process","defense response to Gram-positive bacterium","body morphogenesis","cell wall macromolecule catabolic process","amino sugar metabolic process","chitin-based embryonic cuticle biosynthetic process","proteolysis","chitin-based cuticle development"))
+
+dfs$Pvalue %<>% {log10(.) *(-1)}
+
+dfs %>% filter(gene_group == "TATA genes") %>% ggplot(aes(Term,Pvalue))+geom_bar(stat="identity") + coord_flip()
+
+dfs %>% filter(gene_group == "Paused genes") %>% ggplot(aes(Term,Pvalue))+geom_bar(stat="identity") + coord_flip()
 
 ```
 
@@ -1158,8 +1163,6 @@ readRDS("main_analysis/lst_2_expanded_tx.lst.rds") %>% lapply(function(x){x[1:35
 
 #sc_values.df %>% dplyr::select(gene_name=gene,ng.freq.in.ot) %>% right_join(TA.df) %>% mutate(width_group = ifelse(width>10000,"1_veryhigh",ifelse(width>5000,"2_high",ifelse(width<1000,"4_low","3_medium")))) %>% ggplot(aes(width_group,ng.freq.in.ot,fill=groupname))+geom_boxplot(outlier.shape=NA)
 ```
-
-
 
 
 ```{r session_info_child, child="child_docs/session_info_child.Rmd"}
