@@ -1,0 +1,9 @@
+label,factor,window_upstream,window_downstream,ip,wce
+epidermis,polii,0,200,Epidermis_7021_INTACT_Rpb3_14-17h_1.bw,Epidermis_7021_INTACT_WCE_14-17h_1.bw
+glia,polii,0,200,Glia_repo_INTACT_Rpb3_14-17h_1.bw,Glia_repo_INTACT_WCE_14-17h_1.bw
+gut,polii,0,200,Gut_110394_INTACT_Rpb3_14-17h_1.bw,Gut_110394_INTACT_WCE_14-17h_1.bw
+muscle,polii,0,200,Muscle_mef2_INTACT_Rpb3_14-17h_1.bw,Muscle_mef2_INTACT_WCE_14-17h_1.bw
+neuron,polii,0,200,Neuron_elav_INTACT_Rpb3_14-17h_1.bw,Neuron_elav_INTACT_WCE_14-17h_1.bw
+trachea,polii,0,200,Trachea_8807_INTACT_Rpb3_14-17h_1.bw,Trachea_8807_INTACT_WCE_14-17h_1.bw
+early_embryo,polii,0,200,Dme_emb_Rpb3_2-4h_1.bw,Dme_emb_WCE_2-4h_1.bw
+embryo14,polii,0,200,Dme_emb_Rpb3_14-17h_1.bw,Dme_emb_WCE_14-17h_1.bw

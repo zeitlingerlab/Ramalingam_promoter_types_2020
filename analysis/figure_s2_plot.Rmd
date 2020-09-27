@@ -1,0 +1,64 @@
+
+```{r "knitr config", cache = FALSE, include=FALSE}
+
+knitr::opts_chunk$set(dev=c("png", "CairoPDF"))
+options(knitr.figure_dir = "figure_s2_plot/")
+source("shared/knitr_common.r")
+
+```
+
+```{r setup}
+
+library(Seurat)
+library(cowplot)
+library(tidyr)
+library(dplyr)
+library(magrittr)
+library(RColorBrewer)
+library(mccr)
+library(Cairo)
+```
+
+Find marker genes for the cluters and plot some known markers
+```{r header_child, child="child_docs/header_child.Rmd"}
+```
+
+
+```{r dot_plot,fig.width=24, fig.height=20,dev=c("png","CairoPDF")}
+wt<-readRDS("./figure1_clusters_plot/embryo_wt_single_cell_reannotated.RData")
+
+DotPlot(wt,genes.plot = c("elav","PPO2","prc","TwdlQ","Pebp1","vas","repo","Mur18B","mex1","Mef2","sad","PH4alphaSG2","btl"),cols.use = c("lightgrey","red"),do.return = TRUE,plot.legend = TRUE) ->dot_plot
+
+```
+
+```{r markers_plot,fig.width=24, fig.height=20,dev=c("png","CairoPDF")}
+
+markers <- FindAllMarkers(
+    object = wt, 
+    only.pos = TRUE, 
+   min.pct = 0.05, 
+   thresh.use = 1,do.print = TRUE
+)
+
+
+markers[markers$gene %>% grep('^CG',.,invert = TRUE),] ->markers
+
+top4 <- markers %>% group_by(cluster) %>% top_n(4, avg_logFC)
+
+DoHeatmap(
+   object = wt, 
+   genes.use = top4$gene, 
+   slim.col.label = TRUE, 
+   remove.key = FALSE,group.cex = 5,group.label.rot = TRUE
+) -> markers_plot
+```
+
+
+```{r figures1,fig.width=24, fig.height=20,dev=c("png","CairoPDF")}
+
+plot_grid(markers_plot,dot_plot,labels = c("S2A)","S2B)"),scale = 0.8,ncol = 1,align = 'v',axis = c('l'))
+
+```
+
+``` {r session_info_child, child="child_docs/session_info_child.Rmd"}
+```

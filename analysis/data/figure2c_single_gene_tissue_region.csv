@@ -1,0 +1,4 @@
+seqnames,start,end,strand,fb_gene_id,fb_gene_symbol,limit
+chr3R,6339500,6342250,+,FBgn0037430,Osi20,20
+chr3R,13257300,13259200,-,FBgn0000024,Ace,70
+chr2R,24074500,24078250,+,FBgn0259209,Mlp60A,20

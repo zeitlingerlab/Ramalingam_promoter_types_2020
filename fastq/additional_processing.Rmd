@@ -1,0 +1,272 @@
+``` {r setup, echo=FALSE, message=FALSE, include=FALSE, error=FALSE}
+
+# Output folder for this document
+options(knitr.figure_dir = "additional_processing")
+
+source("shared_code/knitr_common.r")
+knitr::opts_chunk$set(echo=TRUE, eval=FALSE)
+```
+
+# Additional data processing
+
+``` {r header_child, child="child_docs/header_child.Rmd"}
+```
+
+## Overview
+
+This document describes data processing steps performed for effector genes manuscript.
+
+# Amazon EC2 AMI setup notes
+
+We start with the Ubuntu 16.04 EBS-backed AMI for the us-east-1 region.
+
+## Boot AMI
+
+AMI was started as type **c4xlarge** with a 250GB EBS boot volume. This instance type has 16 CPU cores and ~30GB of memory.
+
+## Set up data directory
+
+```bash
+sudo mkdir /data
+sudo chown -R ubuntu:ubuntu /data
+```
+
+## Install R 3.3.2 and Bioconductor 3.3
+
+Add the line below to `/etc/apt/sources.list`
+
+```
+deb https://cloud.r-project.org/bin/linux/ubuntu xenial/
+```
+
+Execute the following to add the appropriate signing key:
+
+```bash
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E084DAB9
+```
+
+Update packages and install R:
+
+```bash
+sudo apt-get update
+sudo apt-get upgrade
+sudo apt-get install r-base r-base-dev
+sudo apt-get install libxml2-dev libcurl3-dev # for Rsamtools
+sudo apt-get install htop samtools pigz sra-toolkit parallel git bowtie bedtools python-pip python-numpy procmail openjdk-8-jre libxt-dev libcairo2-dev
+```
+
+Create ~/.Rprofile: 
+
+```S
+update_bioc = function() {
+  library(BiocInstaller)
+  update.packages(repos=biocinstallRepos(), ask=FALSE)
+}
+
+update_all = function() {
+  message("Updating R packages...")
+  update.packages(ask=F)
+  message("Updating Bioconductor packages...")
+  update_bioc()
+}
+````
+
+Install R and Bioconductor packages by sourcing the following script from a root R session:
+
+```S
+update.packages(ask=F)
+install.packages(c("devtools","reshape", "ggplot2", "stringr", "optparse", "dplyr", "knitr", "rmarkdown", "magrittr", "Seurat", "cowplot", "tidyr","magrittr","RColorBrewer","mccr","Cairo","pander", "chipseq"
+))
+
+source("http://bioconductor.org/biocLite.R")
+biocLite()
+
+bioc_packages <- c("GenomicRanges", 
+                   "BSgenome.Dmelanogaster.UCSC.dm6", 
+                   "BSgenome.Hsapiens.UCSC.hg19",
+                   "rtracklayer", 
+                   "ShortRead",
+                   "Rsamtools",
+				           "BiocParallel",
+				           "Seurat",
+				           "chipseq")
+# other packages are installed later
+biocLite(bioc_packages)
+````
+
+## Download analysis code  **remember to change**
+
+```bash
+cd /data
+mkdir effector_genes
+mkdir effector_genes/scripts
+
+git clone https://github.com/zeitlingerlab/koenecke_enhancer_papers_2016 temp
+mv temp/scripts effector_genes/scripts
+```
+
+## Install python 
+```bash
+
+pip install Cython
+sudo python setup.py install
+```
+
+## Build UCSC dm3 reference genome for Bowtie
+
+```bash
+mkdir /data/genomes
+cd /data/genomes
+mkdir dm6
+cd dm6
+wget 'http://hgdownload.cse.ucsc.edu/goldenPath/dm3/bigZips/dm6.fa.gz'
+gunzip dm6.fa.gz
+cat *.fa > dm6.fa
+bowtie-build dm6.fa dm6
+```
+
+## ChIP-seq alignment
+
+```{bash chipseq_alignment_prep}
+cd /data/chipseq
+mkdir bam
+mkdir bigwigs
+mkdir rds
+```
+
+**Note**: NextSeq samples (all Zelda ChIP-seq samples) were trimmed to 50bp before alignment.
+
+```{bash chipseq_alignment}
+
+parallel -uj 15 /data/analysis/enhancer_papers/scripts/align_chipseq.sh {} ::: `ls /data/effector_genes/fastq/chipseq/new_samples/*.fastq.gz`
+
+cd /data/bam/chipseq/
+parallel -uj 2 /data/analysis/enhancer_papers/scripts/sort_bam {} ::: *.bam
+
+
+cd /data/chipseq/rds
+parallel -uj 3 Rscript /data/effector_genes/scripts/process_bam.r -f {} -e auto ::: ../bam/*.bam
+mv *.bw ../bigwigs
+```
+
+## ATAC-seq alignment
+
+```{bash atacseq_alignment}
+cd /data/atacseq
+mkdir bam
+parallel -uj 1 /data/analysis/enhancer_papers/scripts/align_atacseq.sh {} ::: fastq/*.fastq.gz
+cd bam
+parallel -uj 1 /data/analysis/enhancer_papers/scripts/sort_bam {} ::: *.bam
+```
+
+
+## Generation of ATAC-seq tracks
+
+```{r generate_atacseq_tracks, eval=FALSE}
+library(GenomicAlignments)
+library(rtracklayer)
+library(magrittr)
+
+dir.create("/data/atacseq/bigwigs")
+
+bam_to_coverage <- function(filename) {
+  readGAlignmentPairs(filename) %>%
+    granges %>%
+    coverage
+}
+
+bam_to_coverage("/data/atacseq/bam/orer_atac_1.bam") %>%
+  export("/data/atacseq/bigwigs/orer_atac_1.bw")
+
+bam_to_coverage("/data/atacseq/bam/orer_atac_2.bam") %>%
+  export("/data/atacseq/bigwigs/orer_atac_2.bw")
+
+```
+
+## Generation of ChIP-seq reads-per-million tracks
+
+```{r chipseq_rpm_tracks, engine="bash", eval=FALSE}
+cd /data/chipseq/bigwigs
+mkdir rpm
+cd rpm
+parallel -uj 3 Rscript /data/analysis/enhancer_papers/scripts/rpm_normalize_bigwig.r -b {} ::: \
+  ../*_zld_*.bw \
+  ../*_dl_*.bw \
+  ../*_twi_*.bw \
+  ../*_mad_*.bw \
+  ../*_zen_*.bw \
+  ../*_sna_*.bw \
+  ../*_nej_*.bw \
+  ../*_h3k27ac_*.bw
+```
+
+## install Cellranger and create 10x transcriptome
+
+```{bash download cellranger}
+
+sudo wget -O cellranger-2.1.1.tar.gz "http://cf.10xgenomics.com/releases/cell-exp/cellranger-2.1.1.tar.gz?Expires=1522754627&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cDovL2NmLjEweGdlbm9taWNzLmNvbS9yZWxlYXNlcy9jZWxsLWV4cC9jZWxscmFuZ2VyLTIuMS4xLnRhci5neiIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTUyMjc1NDYyN319fV19&Signature=EF-EL8D6ccJ2OlqXXHc7KwpHnRH29CLQGUxdk958q-0Wxjm9RW3lmepJQgPLLnE59hq2TSg8cfpyYDziNe1V46okZ0NQdyd4-eINQAZggc1b1nAq8DLnt-toKuPDjWqA~oiHhF9HY~ZevBZvDNQFYTQIdDh5H2Maof0SKm5Z6dRBslacIQvV6ra3UR-8XWMH9Ry2HUvYdwdviQkeJSBE9V2zMt2IOsBNgiipnc38sTuOGVtdIWqNPFEqAlXQQQxzt5v8XGeOWAOEzqLVRxS59H49uH-ahtrN16lmifhtSQZ5ie5n~tRJgKoTNeZNhmVBWwmXD~NU-wUO~8L316UcmA__&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA"
+
+sudo tar -xzvf cellranger-2.1.1.tar.gz
+
+
+cd /data/effector_genes/genomes/
+mkdir 10x
+mkdir 10x/fastq
+cd 10x/fastq
+cp /data/effector_genes/genomes/dm6/dm6.fa .
+
+cd ..
+mkdir gtf
+
+wget ftp://ftp.ensembl.org/pub/release-91/gtf/drosophila_melanogaster/Drosophila_melanogaster.BDGP6.91.gtf.gz
+gunzip Drosophila_melanogaster.BDGP6.91.gtf.gz
+
+awk -F "/t" 'FNR >4 {$1="chr"$1;print $0}' Drosophila_melanogaster.BDGP6.91.gtf >temp
+/opt/cellranger-2.1.1/cellranger mkref --genome dm6 --fasta /data/genomes/10x/fasta/dm6.fa --genes temp
+
+mkdir /data/effector_genes/pipeline/
+
+cd /data/effector_genes/pipeline/
+
+#wt_14hrs
+
+/opt/cellranger-2.1.1/cellranger count --id=wt_14h_1 --fastqs=/data/effector_genes/fastq/single_cell/HTJTWBCXY/L29882/ --transcriptome=/data/genomes/10x/dm6/
+
+/opt/cellranger-2.1.1/cellranger count --id=wt_14h_2 --fastqs=/data/effector_genes/fastq/single_cell/H2FLHBCX2/L31409/ --transcriptome=/data/genomes/10x/dm6/
+
+
+mkdir wt
+cd wt
+/opt/cellranger-2.1.1/cellranger aggr --id=wt --csv=wt.csv
+
+#kc_cells
+/opt/cellranger-2.1.1/cellranger count --id=kc_cells_1 --fastqs=/data/effector_genes/fastq/single_cell/HC37FBCX2/L33099/ --transcriptome=/data/genomes/10x/dm6/
+
+```
+
+## run 10x pipeline
+
+
+
+
+
+
+````{bash}
+cd /n/projects/vir/manuscripts/effector_genes/aws/fastq/chipseq/new_folder
+
+sed 's/\r//' chipseq_samples.csv | awk -F "," -f map_path.awk >fastq_path.csv 
+
+awk '{system("cp " $1" " $2) }' fastq_path.csv 
+
+cd /n/projects/vir/manuscripts/effector_genes/aws/fastq/atac
+
+
+sed 's/\r//' atac_samples.csv | awk -F "," -f map_path.awk > atac_fastq_path.csv 
+
+awk '{system("cp " $1" " $2) }' atac_fastq_path.csv
+
+/n/projects/vir/manuscripts/effector_genes/aws/fastq/combine_files.sh
+
+````
+``` {r session_info_child, child="child_docs/session_info_child.Rmd"}
+```

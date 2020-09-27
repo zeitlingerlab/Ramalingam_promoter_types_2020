@@ -1,0 +1,76 @@
+
+```{r "knitr config", cache = FALSE, include=FALSE}
+
+knitr::opts_chunk$set(dev=c("png", "pdf"))
+options(knitr.figure_dir = "figure1_automatic_clutering/")
+source("shared/knitr_common.r")
+
+```
+
+```{r setup}
+
+library(Seurat)
+library(cowplot)
+library(tidyr)
+library(dplyr)
+library(magrittr)
+library(RColorBrewer)
+library(mccr)
+library(parallel)
+```
+
+Automatically annotate the identity of clusters from single cells using insitu by MCC correlation
+
+```{r header_child, child="child_docs/header_child.Rmd"}
+```
+
+
+```{r}
+wt<-readRDS("./figure1_single_cell_wt/embryo_wt_single_cell.RData")
+
+wt@data %>% apply(.,1,function(x){ifelse(x>quantile(x[x>0],0.90),1,0)}) %>% t ->wt@misc
+wt@misc<-wt@misc[!rowSums(wt@misc) %>% is.na(),]
+
+imago <- readRDS("./data/external/insitu/insitu.rds") %>%
+           filter(stage %in% c("stage13-16"))
+all_terms <- imago$term %>% unique
+remove_terms <- c("ubiq", "no staining") %>%
+                  lapply(grep, all_terms) %>% unlist %>% {c(.)}
+                  
+  
+all_terms <- all_terms[-remove_terms]
+
+imago %<>% filter(term %in% all_terms)
+imago %<>% filter (fb_symbol != "<NA>")
+
+imago %<>% filter(fb_symbol %in% rownames(wt@misc))
+
+imago %>% group_by(term) %>% summarise(total_genes = length(fb_gene_id)) %>% filter(total_genes>3) %>% as.data.frame() -> select_terms
+imago %<>% filter(term %in% select_terms$term)
+
+
+imago %>% unique %>% dplyr::select(fb_symbol,term) %>% mutate(value =1) %>% spread(key = term, value = value, fill =0) -> BDGP_binned
+
+cal_corr<-function(cluster){
+wt@meta.data[wt@meta.data$res.0.8 ==cluster,] %>% row.names() -> tissue
+
+wt@misc[rownames(wt@misc) %in% imago$fb_symbol,] -> wt@misc
+wt@misc[rownames(wt@misc) %>%  order(),] -> wt@misc
+wt@misc[,colnames(wt@misc) %in% tissue] %>% apply(.,2,function(x){apply(BDGP_binned,2, function(y){mccr(x,y)})})  -> corr_score
+
+corr_score %>% as.data.frame() %>%  mutate(fb_symbol = colnames(BDGP_binned)) %>% gather(key = cell,value = correlation,-fb_symbol) %>% group_by(cell) %>% summarise(term = fb_symbol[which(correlation == max(correlation))[1]]) %>% dplyr::select(term) %>%  table() %>% as.data.frame()
+}
+c(0:17) -> lst
+
+names(lst) <- lst
+mclapply(lst,cal_corr,mc.cores = 18) ->identified_cluster
+
+identified_cluster %>% do.call(rbind,.) %>% as.data.frame()->identified_cluster.df
+identified_cluster.df$cluster<-rownames(identified_cluster.df)
+names(identified_cluster.df)<-c('identified_tissue',"Freq","single_cell_cluster")
+
+write.csv(x = identified_cluster.df, file="./figure1_automatic_clutering/clusters.csv")
+```
+
+``` {r session_info_child, child="child_docs/session_info_child.Rmd"}
+```

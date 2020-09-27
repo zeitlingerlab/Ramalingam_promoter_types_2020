@@ -1,0 +1,64 @@
+
+```{r "knitr config", cache = FALSE, include=FALSE}
+
+knitr::opts_chunk$set(dev=c("png", "pdf"))
+options(knitr.figure_dir = "figure1_clusters_plot/")
+source("shared/knitr_common.r")
+
+```
+
+```{r setup, include=FALSE}
+
+library(Seurat)
+library(cowplot)
+library(tidyr)
+library(dplyr)
+library(magrittr)
+library(RColorBrewer)
+library(mccr)
+```
+
+Annotate the clusters based on MCC correlation and manual identification with markers and replot TSNE projection 
+
+```{r header_child, child="child_docs/header_child.Rmd"}
+```
+
+
+```{r plot_clusters,fig.width=24, fig.height=20,dev=c("png","CairoPDF")}
+wt<-readRDS("./figure1_single_cell_wt/embryo_wt_single_cell.RData")
+# Annotate the identified clusetes based on markers and MCC correlation
+wt<-RenameIdent(wt,0,"CNS")
+wt<-RenameIdent(wt,1,"Fatbody")
+wt<-RenameIdent(wt,2,"Fatbody")
+wt<-RenameIdent(wt,3,"Trachea")
+wt<-RenameIdent(wt,4,"Midgut")
+wt<-RenameIdent(wt,5,"CNS")
+wt<-RenameIdent(wt,6,"Epidermis")
+wt<-RenameIdent(wt,7,"Muscle")
+wt<-RenameIdent(wt,8,"Midgut")
+wt<-RenameIdent(wt,9,"Glia")
+wt<-RenameIdent(wt,10,"Dorsal vessel")
+wt<-RenameIdent(wt,11,"Epidermis")
+wt<-RenameIdent(wt,12,"PNS")
+wt<-RenameIdent(wt,13,"PNS")
+wt<-RenameIdent(wt,14,"Plasmocytes")
+wt<-RenameIdent(wt,15,"Crystal cells")
+wt<-RenameIdent(wt,16,"Malphigian tubules")
+wt<-RenameIdent(wt,17,"Gastric caecum")
+# Annotate subset of cells based on markers
+
+wt<-SetIdent(wt,cells.use = (SubsetData(object = wt,subset.name = c('PH4alphaSG2'),accept.low = c(0.5)))@cell.names,ident.use = 'Salivary glands')
+
+wt<-SetIdent(wt,cells.use = (wt %>% SubsetData(subset.name = 'sad',accept.low = 0.5) %>%  SubsetData(subset.name = 'spok',accept.low = 0.5) %>% SubsetData(subset.name = 'sro',accept.low = 0.5))@cell.names,ident.use = 'Ring glands')
+
+wt<-SetIdent(wt,cells.use = (wt %>% SubsetData(subset.name = 'HP1Lcsd',accept.low = 0.5) %>%  SubsetData(subset.name = 'karr',accept.low = 0.5) %>% SubsetData(subset.name = 'piwi',accept.low = 0.5))@cell.names,ident.use = 'Germ cells')
+
+saveRDS(wt,file=figure_path("embryo_wt_single_cell_reannotated.RData"))
+
+TSNEPlot(object = wt, do.return = TRUE, pt.size = 2,do.label=TRUE,label.size = 8,no.legend = TRUE,no.axes = TRUE)
+
+AverageExpression(wt) %>% as.data.frame() %>% write.csv(.,figure_path("st1_average_cluster_expression.csv"))
+```
+
+``` {r session_info_child, child="child_docs/session_info_child.Rmd"}
+```

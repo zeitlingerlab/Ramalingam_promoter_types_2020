@@ -1,0 +1,7 @@
+condition,factor,bw,color
+epidermis,polii,data/chipseq/bw/tissue_specific_data/epidermis_7021_intact_rpb3_3_id1546_ext145.bw_RPM_.bw,"""#664917"""
+glia,polii,data/chipseq/bw/tissue_specific_data/glia_repo_intact_rpb3_4_id1475_ext162.bw_RPM_.bw,"""#664917"""
+gut,polii,data/chipseq/bw/tissue_specific_data/gut_110394_intact_rpb3_2_id1408_ext166.bw_RPM_.bw,"""#664917"""
+muscle,polii,data/chipseq/bw/tissue_specific_data/muscle_mef2_intact_rpb3_07_19_3rr_id1238_ext147.bw_RPM_.bw,"""#664917"""
+neuron,polii,data/chipseq/bw/tissue_specific_data/neuron_elav_intact_rpb3_3_id1490_ext157.bw_RPM_.bw,"""#664917"""
+trachea,polii,data/chipseq/bw/tissue_specific_data/trachea_8807_intact_rpb3_2_id1407_ext159.bw_RPM_.bw,"""#664917"""

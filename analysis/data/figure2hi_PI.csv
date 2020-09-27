@@ -1,0 +1,8 @@
+label,factor,window,window_upstream,window_downstream,ip,wce
+late_1,polii,tss,0,200,Dme_emb_Rpb3_14-17h_1.bw,Dme_emb_WCE_14-17h_1.bw
+late_2,polii,tss,0,200,Dme_emb_Rpb3_14-17h_2.bw,Dme_emb_WCE_14-17h_2.bw
+late_1,polii,tu,200,400,Dme_emb_Rpb3_14-17h_1.bw,Dme_emb_WCE_14-17h_1.bw
+late_2,polii,tu,200,400,Dme_emb_Rpb3_14-17h_2.bw,Dme_emb_WCE_14-17h_2.bw
+late_1,tfiib,tss,-100,100,Dme_emb_TFIIB_14-17h_1.bw,Dme_emb_WCE_14-17h_1.bw
+late_2,tfiib,tss,-100,100,Dme_emb_TFIIB_14-17h_2.bw,Dme_emb_WCE_14-17h_2.bw
+late_1,tfiif,tss,-100,100,Dme_emb_TFIIF_14-17h_1.bw,Dme_emb_WCE_14-17h_1.bw

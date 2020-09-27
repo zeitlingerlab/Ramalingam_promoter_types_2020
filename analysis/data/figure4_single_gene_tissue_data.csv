@@ -1,0 +1,6 @@
+condition,factor,bw,color
+epidermis,polii,data/intact_atac/epidermis_intact_atac_2.ranges.RData_from0to100.bw,"""#664917"""
+gut,polii,data/intact_atac/vir/dme_gut_intact_orer_14_17h_atac_2.ranges.RData_from0to100.bw,"""#664917"""
+muscle,polii,data/intact_atac/muscle_mef2_intact_atac_4.ranges.RData_from0to100.bw,"""#664917"""
+neuron,polii,data/intact_atac/neuron_elav_intact_atac_2.ranges.RData_from0to100.bw,"""#664917"""
+trachea,polii,data/intact_atac/vir/dme_trachea_intact_orer_14_17h_atac_2.ranges.RData_from0to100.bw,"""#664917"""

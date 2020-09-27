@@ -1,0 +1,108 @@
+```{r setup, echo=FALSE, message=FALSE, include=FALSE, error=FALSE}
+library(ggplot2)
+library(dplyr)
+library(magrittr)
+library(Hmisc)
+library(cowplot)
+
+# Output folder for this document
+options(knitr.figure_dir = "figureS5bc_gene_clusters")
+
+knitr::opts_chunk$set(dev=c("png", "pdf"))
+
+source("shared/knitr_common.r")
+source("shared/metagene_common.r")
+source("shared/flybase.r")
+source("shared/promoter_element_enrichments.r")
+
+```
+
+
+Look at the gene clusters and their length.
+
+we will exclude histone and Ste, because many histones come from the same location but have different names. Select genes with more than four with similar names and nearby are considered clusters.
+
+```{r header_child, child="child_docs/header_child.Rmd"}
+```
+
+```{r files}
+
+
+flybase_txs_granges() ->fb.txs
+
+#fb.txs$fb_symbol %>% unique()->text
+#mat <- adist(text)
+#rownames(mat) <- colnames(mat) <- text
+#d <- as.dist(mat)
+#hc <- hclust(d, method = "average")
+#hc
+#mat %>% str()
+#as.dist(mat)->d
+#hc <- hclust(d, method = "average")
+
+#k <- 500 # choose a 500-cluster-solution
+#plot.new()
+#rect.hclust(hc, k=k)
+#clusters <- cutree(hc, k=k)
+#split(text, clusters) -> cl
+
+# we will exclude histone and Ste, because many histones come from the same location but have different names. Select genes with three or more similar names and nearby are considered clusters.
+# three cluster genes "jon25B","jon99C","Mst57D","Cyp313a","Cyp4e","Cyp4p","Ir60","Gr98a","Ir94","Gr36","Gr93","Or65","Gr58","Ir75","Ir60","Or59","Ir56","Obp83","PGPR-L","PGPR-SC","l(2)35B","Ste24","Ugt36B","Cpr62B","Cpr78C","Cpr72E","beat-I","beat-V","Sf# p33A","Sfp24B"
+toMatch<-c("Spn43A","Spn42D","alpha-Est","Ccp84A","Lcp65A","Twdl","Osi","Tsp42E","Try","Cpr47E","Cpr49A","Cpr76B","Cpr64A","Eig71","GstD","GstE","Cyp6a","Cyp317a1","Ir7","Ir75","Ir52","Or85","Gr93","Mal-A","Lcp","Drsl","betaNACtes","IM","Mst84D","Jon65A","Gr22","Gr59","Gr64","Obp50","Obp57","Obp58","Obp56","NimB","Ir94","Obp19","Ugt86D","Cpr65A","jon25B","jon99C","Mst57D","Cyp313a","Cyp4e","Cyp4p","Ir60","Gr98a","Ir94","Gr36","Gr93","Or65","Gr58","Ir75","Ir60","Or59","Ir56","Obp83","PGPR-L","PGPR-SC","l(2)35B","Ste24","Ugt36B","Cpr62B","Cpr78C","Cpr72E","beat-I","beat-V","Sfp33A","Sfp24B")
+
+unique (grep(paste(toMatch,collapse="|"),
+fb.txs$fb_symbol, value=TRUE)) -> cluster_genes
+
+
+wilcox.test(fb.txs[fb.txs$fb_symbol %in% cluster_genes] %>% width(), fb.txs %>% width(),alternative = 'two.sided')
+fb.txs[fb.txs$fb_symbol %in% cluster_genes] %>% width() -> a
+fb.txs[!fb.txs$fb_symbol %in% cluster_genes] %>% width() ->b
+
+
+rbind(data.frame(length=a,name='cl'),data.frame(length=b,name='ncl')) %>% ggplot(aes(name,log10(length)))+geom_boxplot(notch=FALSE)
+
+
+````
+
+```{r promoter_elements, fig.width=11, fig.height=6}
+
+promoter_element_heatmap<-function(plot.df, 
+                                     title,
+                                     element.order=c("GAGA","TATA", "Inr", "DPE", "PB","DRE", "Motif1", "Motif6", "Motif7"),
+                                     manual.scale=c(),
+                                     star_pvalue=0.05) {
+
+  plot.df <- transform(plot.df, enrichment = ifelse(enrichment < 1, -1 / enrichment, enrichment),
+                                sig_label = ifelse(pvalue < star_pvalue, "*", ""))
+
+  if(length(manual.scale) > 0) {
+    plot.df$enrichment[plot.df$enrichment<min(manual.scale)]<-min(manual.scale)
+    plot.df$enrichment[plot.df$enrichment>max(manual.scale)]<-max(manual.scale)
+  } 
+
+  plot.df <- subset(plot.df, element %in% element.order)
+  plot.df$element <- factor(plot.df$element, levels=element.order)
+
+  g <- ggplot(plot.df, aes(x=element, y=group_name, fill=enrichment)) + 
+       geom_tile() + 
+       geom_text(aes(label=sig_label), color="white") +
+       theme_bw() +
+       scale_x_discrete(expand=c(0, 0)) +
+       scale_y_discrete(expand=c(0, 0)) +
+       scale_fill_gradientn(name="Enrichment", space="Lab", na.value="yellow",
+                            values=c(0, 0.4,0.6,1), 
+                            colours=c("#000000", "#cccccc", "#cccccc", "#FC8F00"), guide="colourbar") +
+       labs(x="", y="", title=title) +
+       theme(panel.grid.minor=element_blank(),
+             panel.grid.major=element_blank())
+  g
+}
+
+flybase_txs_granges() ->txs.gr
+txs.gr %>% as.data.frame() %>% group_by(fb_gene_id) %>% dplyr::summarize(seqnames = seqnames[1], start = start [1],end = end[1], strand = strand[1], fb_tx_id = fb_tx_id[1], fb_symbol = fb_symbol[1]) %>% `$`(fb_tx_id) ->all_txs
+txs.gr %>%  as.data.frame() %>% filter(fb_tx_id %in% all_txs) %>% merge(data.frame(fb_symbol=cluster_genes)) ->cluster_genes
+promoter_element_enrichments(list(cluster=cluster_genes$fb_tx_id), all_txs) ->pe.df
+promoter_element_heatmap(pe.df, title= "Genes in cluster",manual.scale=c(4,-4))
+```
+``` {r session_info_child, child="child_docs/session_info_child.Rmd"}
+```

@@ -1,0 +1,100 @@
+
+```{r "knitr config", cache = FALSE, include=FALSE}
+
+knitr::opts_chunk$set(dev=c("png", "pdf"))
+options(knitr.figure_dir = "figure_3_polII_exp/")
+source("shared/knitr_common.r")
+
+```
+
+```{r setup}
+
+library(Seurat)
+library(cowplot)
+library(tidyr)
+library(dplyr)
+library(magrittr)
+library(RColorBrewer)
+
+```
+
+
+
+Look at late genes
+
+```{r header_child, child="child_docs/header_child.Rmd"}
+```
+
+
+```{r sort_for_heatmap}
+
+sort_for_hm<-function(max_col,dfs){
+  
+  temp<-dfs[dfs$max_col == max_col,]
+  temp %>% arrange_(max_col)
+  
+}
+```
+```{r polII_vs_expression}
+wt<-readRDS("figure1_clusters_plot/embryo_wt_single_cell_reannotated.RData")
+
+wt %>% AverageExpression() ->avg_exp
+
+read.csv("/n/zeitlingerlab/Manuscripts/EffectorGenes/late_induced_genes_spreadsheet.csv") ->late_polII
+avg_exp %<>% mutate(fb_symbol = row.names(.))
+ 
+avg_exp %>% inner_join(late_polII) %>% `[`(,c("CNS","Glia","Epidermis","Trachea","Muscle","fb_symbol")) ->rna_seq_data
+avg_exp %>% inner_join(late_polII) %>% `[`(,c("polii.neuron","polii.epidermis","polii.glia","polii.muscle","polii.trachea","fb_symbol"))->temp
+temp$fb_symbol == rna_seq_data$fb_symbol
+temp[temp<1]<-0
+
+temp %>% dplyr::select(polii.neuron,polii.glia,polii.epidermis,polii.trachea,polii.muscle,fb_symbol) ->temp
+
+temp[,1:5] %<>% apply(.,2,function(x){y=quantile(x,0.95);ifelse(x>y,1,x/y)})
+temp$max_col<-colnames(temp)[max.col(temp %>% dplyr::select(-fb_symbol),ties.method="first")]
+
+colnames(temp) %>% lapply(sort_for_hm,temp) %>%  do.call(rbind,.) ->mt_sorted
+
+
+
+temp$fb_symbol == rna_seq_data$fb_symbol
+
+
+
+rna_seq_data$fb_symbol %<>% factor(mt_sorted$fb_symbol)
+
+
+rna_seq_data[order(rna_seq_data$fb_symbol),]->rna_seq_data
+
+rna_seq_data %>%  dplyr::select(-fb_symbol) ->rna_seq_data_plot
+
+
+temp$fb_symbol[temp$polii.epidermis>0 | temp$polii.glia>0 | temp$polii.trachea>0 | temp$polii.muscle>0 | temp$polii.neuron>0] ->intact_genes
+
+
+rna_seq_data %>% filter(fb_symbol %in% late_polII$fb_symbol[(late_polII$above_bg_tissues %in% c(1,2)) & late_polII$fb_symbol %in% intact_genes]) %>% dplyr::select(-fb_symbol) ->rna_seq_data_plot
+rna_seq_data_plot[rna_seq_data_plot>2]<-2
+
+
+rna_seq_data_plot %>% as.matrix %>% gplots::heatmap.2(,Rowv = NA,trace ='none',Colv = NA, col = colorRampPalette(colors = c("white","red"),100),breaks = seq(0,2,0.01),main = 'tata_exp')
+
+mt_sorted  %>% filter(fb_symbol %in% late_polII$fb_symbol[(late_polII$above_bg_tissues %in% c(1,2)) & late_polII$fb_symbol %in% intact_genes]) %>% dplyr::select(-fb_symbol,-max_col) %>%  as.matrix %>% gplots::heatmap.2(,Rowv = NA,trace ='none',Colv = NA, col = colorRampPalette(colors = c("white","darkblue"),100),breaks = seq(0,1,0.01),main = 'tata_polII')
+
+
+
+temp$fb_symbol[temp$polii.epidermis>0 | temp$polii.glia>0 | temp$polii.trachea>0 | temp$polii.muscle>0 | temp$polii.neuron>0] ->intact_genes
+
+
+rna_seq_data %>% filter(fb_symbol %in% late_polII$fb_symbol[(late_polII$above_bg_tissues %in% c(5,6)) & late_polII$fb_symbol %in% intact_genes]) %>% dplyr::select(-fb_symbol) ->rna_seq_data_plot
+rna_seq_data_plot[rna_seq_data_plot>2]<-2
+
+
+rna_seq_data_plot %>% as.matrix %>% gplots::heatmap.2(,Rowv = NA,trace ='none',Colv = NA, col = colorRampPalette(colors = c("white","red"),100),breaks = seq(0,2,0.01),main='paused_exp')
+
+mt_sorted  %>% filter(fb_symbol %in% late_polII$fb_symbol[(late_polII$above_bg_tissues %in% c(5,6)) & late_polII$fb_symbol %in% intact_genes]) %>% dplyr::select(-fb_symbol,-max_col) %>%  as.matrix %>% gplots::heatmap.2(,Rowv = NA,trace ='none',Colv = NA, col = colorRampPalette(colors = c("white","darkblue"),100),breaks = seq(0,1,0.01),main='paused_polII')
+
+````
+
+
+``` {r session_info_child, child="child_docs/session_info_child.Rmd"}
+```

@@ -1,0 +1,43 @@
+# filter mnase data to get coverage
+
+``` {r setup, echo=FALSE, message=FALSE, include=FALSE, error=FALSE}
+library(dplyr)
+library(tidyr)
+library(magrittr)
+library(parallel)
+library(GenomicAlignments)
+library(rtracklayer)
+cores_to_use<-40;
+path_to_files<-"/data/effector_genes/bam/mnase/"
+min_frag_size<-100;
+max_frag_size<-200;
+
+```
+
+``` {r header_child, child="child_docs/header_child.Rmd"}
+
+```
+
+## Load the bam files, filter, export
+
+``` {r load the bw files}
+
+get_coverage <- function(file_name,min_frag_size,max_frag_size){
+  as(readGAlignmentPairs(file_name, use.names=TRUE), "GRanges")  %>%
+  {`[`(.,(width(.)>min_frag_size) & (width(.)<max_frag_size))} %>% coverage %>%
+    export(.,paste0(file_name,"_from",min_frag_size,"to",max_frag_size,".bw"))
+}
+
+files.list<-list.files(path_to_files,pattern="mnase",full.names=TRUE)
+files.list
+
+mclapply(files.list, get_coverage,min_frag_size,max_frag_size,mc.cores=cores_to_use)
+
+
+````
+
+
+
+``` {r session_info_child, child="child_docs/session_info_child.Rmd"}
+```
+

@@ -1,0 +1,49 @@
+```{r setup, echo=FALSE, message=FALSE, include=FALSE, error=FALSE}
+
+library(Seurat)
+library(cowplot)
+library(tidyr)
+library(dplyr)
+library(magrittr)
+library(RColorBrewer)
+
+# Output folder for this document
+options(knitr.figure_dir = "figure3a_single_cell")
+
+knitr::opts_chunk$set(dev=c("png", "pdf"))
+source("shared/knitr_common.r")
+source("shared/granges_common.r")
+source("shared/flybase.r")
+
+```
+
+Look at gene expression of Tata and paused genes in the single cell data
+
+```{r header_child, child="child_docs/header_child.Rmd"}
+```
+
+
+```{r plot, fig.width=14, fig.height=10,dev=c("png","CairoPDF")}
+
+wt<-readRDS("figure1_clusters_plot/embryo_wt_single_cell_reannotated.RData")
+
+```
+#TATA genes
+```{r tata_genes, fig.width=14, fig.height=10,dev=c("png","CairoPDF")}
+
+TATA_genes<-c("CG7203","Edg78E","Ms","CG9757","CG4386","kappaTry","Mur18B","CG4563","CG17636","CG3588","Ser6","etaTry","Mal-A2","CG15556")
+
+1:length(TATA_genes)%>%lapply(function(i){VlnPlot(wt,features.plot = TATA_genes[i])})
+```
+#paused genes
+```{r paused_genes, fig.width=14, fig.height=10,dev=c("png","CairoPDF")}
+
+
+paused_genes<-c("fok","Clect27","Phk-3","CG4115","Msr-110","vkg","Gasp","CG9782","CG33978","SP2353","Tig","obst-B","exp","CG4562","CG9380","kkv","knk","moody","bark","CG11617","CG9084")
+
+1:length(paused_genes)%>%lapply(function(i){VlnPlot(wt,features.plot = paused_genes[i])})
+```
+
+
+``` {r session_info_child, child="child_docs/session_info_child.Rmd"}
+```

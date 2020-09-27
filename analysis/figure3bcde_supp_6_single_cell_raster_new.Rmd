@@ -1,0 +1,159 @@
+```{r setup, echo=FALSE, message=FALSE, include=FALSE, error=FALSE}
+
+library(Seurat)
+library(cowplot)
+library(tidyr)
+library(dplyr)
+library(magrittr)
+library(RColorBrewer)
+
+# Output folder for this document
+options(knitr.figure_dir = "figure3bcde_supp6_single_cell_raster_new")
+
+knitr::opts_chunk$set(dev=c("png", "pdf"))
+source("shared/knitr_common.r")
+source("shared/granges_common.r")
+source("shared/flybase.r")
+
+```
+
+# Look at changes in gene expression of Tata and paused genes and other groups in the single cell data
+
+```{r header_child, child="child_docs/header_child.Rmd"}
+```
+
+```{r calculate values}
+
+calculate_expression_values <- function(sc_data.df,fb_symbols){
+data.df <- sc_data.df[,colnames(sc_data.df) %in% fb_symbols]
+
+data.df$cell<-rownames(sc_data.df)
+
+data.df$condition<-sub("_.*", "", data.df$cell)
+
+data.df$cell<-sub(".*_", "", data.df$cell)
+
+data.df %<>%  mutate( group = wt@ident)
+
+data.df %>% gather(gene,expression,-cell,-condition,-group) -> data.df_long
+
+data.df_long %>% group_by(group,gene) %>% mutate(total = length(cell),median_nz_expression=median(expression[expression>0]) %>% is.na %>% ifelse(0,median(expression[expression>0])),nz_freq=(sum(expression>0))/length(expression), sd = (var((expression[expression>0])^2))^0.5,mean_exp = mean((expression[expression>0])^2) %>% is.na %>% ifelse(0,mean((expression[expression>0])^2)), max_exp = max(expression),total_expression = sum(expression))->exp_data.df
+ 
+
+exp_data.df %<>% group_by(gene) %>% mutate(exp_group = group[which(expression==max(expression))[1]],expression_in_ht = median_nz_expression[which(group==exp_group)[1]] ,nz_freq_in_ht = nz_freq[which(group==exp_group)[1]], var.in.ht = sd[which(group==exp_group)[1]] , mean_exp_ht = mean_exp[which(group==exp_group)[1]], nz_freq_in_ot=weighted.mean(nz_freq[which((max_exp < (sort(max_exp,decreasing =FALSE) %>% unique)[5]) )],total[which((max_exp < (sort(max_exp,decreasing =FALSE) %>% unique)[5]) )]),total_expression = total_expression[which(group==exp_group)[1]],mean_exp_ot=weighted.mean(mean_exp[which((max_exp < (sort(max_exp,decreasing =FALSE) %>% unique)[5]) )],total[which((max_exp < (sort(max_exp,decreasing =FALSE) %>% unique)[5]) )]))
+
+exp_data.df %>%  group_by(gene) %>% dplyr::summarize(expression.in.ht=expression_in_ht[1] ,ng.freq.in.ht= nz_freq_in_ht[1] , var.in.ht = var.in.ht[1]/mean_exp_ht[1] , mean_exp_ht = mean_exp_ht[1],ng.freq.in.ot=nz_freq_in_ot[1], total_expression = total_expression[1],mean_exp_ot=mean_exp_ot[1])  -> wide_data.df
+
+wide_data.df[-1] %<>% mutate_if(is.character,as.numeric)
+
+wide_data.df[!(rowSums(is.na(wide_data.df))>0),] -> wide_m_data.df
+wide_m_data.df
+}
+
+
+calculate_expression_values_loess <- function(sc_data.df){
+data.df <- sc_data.df
+
+data.df$cell<-rownames(sc_data.df)
+
+data.df$condition<-sub("_.*", "", data.df$cell)
+
+data.df$cell<-sub(".*_", "", data.df$cell)
+
+data.df %<>%  mutate( group = wt@ident)
+
+data.df %>% gather(gene,expression,-cell,-condition,-group) -> data.df_long
+
+data.df_long %>% group_by(group,gene) %>% mutate(total = length(cell),sd = (var((expression[expression>0])^2))^0.5,mean_exp = mean((expression[expression>0])^2) %>% is.na %>% ifelse(0,mean((expression[expression>0])^2)))->exp_data.df
+ 
+
+exp_data.df %<>% group_by(gene) %>% mutate(exp_group = group[which(expression==max(expression))[1]], var.in.ht = sd[which(group==exp_group)[1]] , mean_exp_ht = mean_exp[which(group==exp_group)[1]])
+
+exp_data.df %>%  group_by(gene) %>% dplyr::summarize(var.in.ht = var.in.ht[1]/mean_exp_ht[1] , mean_exp_ht = mean_exp_ht[1])  -> wide_data.df
+
+wide_data.df[-1] %<>% mutate_if(is.character,as.numeric)
+
+wide_data.df[!(rowSums(is.na(wide_data.df))>0),] -> wide_m_data.df
+wide_m_data.df
+
+wide_m_data.df%>% filter(mean_exp_ht<10,mean_exp_ht>0.1) ->filtered_data
+loessmod10<-loess( var.in.ht ~ mean_exp_ht , data=filtered_data, span=0.10)
+smoothed10 <- predict(loessmod10) 
+filtered_data$var.in.ht_res<-filtered_data$var.in.ht-smoothed10
+filtered_data
+
+}
+```
+
+```{r plot, fig.width=14, fig.height=10,dev=c("png","CairoPDF")}
+
+wt<-readRDS("figure1_clusters_plot/embryo_wt_single_cell_reannotated.RData")
+
+t(wt@data) %>% as.matrix %>%  as.data.frame() -> sc_data.df
+
+sc_data_calculate <- function(groups,sc_data.df){
+  
+  sc.df <- groups %>%
+            lapply(function(fb_symbols) {
+              calculate_expression_values(sc_data.df,fb_symbols)
+            }) %>%
+            bind_rows(.id="group_name")
+  
+  sc.df 
+}
+
+readRDS("other_analysis_new/lst_2_expanded_tx.lst.rds") %>% lapply(function(fb_tx_ids) {
+              flybase_txs() %>% filter(fb_tx_id %in% fb_tx_ids) %>% `$`(fb_symbol)
+            })->groups
+groups %>% sc_data_calculate(sc_data.df) ->sc_values.df
+
+sc_values.df %>% gather(variable,value,-group_name) %>% filter(variable %in%  c("ng.freq.in.ht","ng.freq.in.ot")) %>% ggplot(.,aes(variable,value %>% as.numeric %>% {. * 100},fill=group_name)) + geom_boxplot(outlier.shape = NA) +ggtitle("% of cells with expression") + labs(x="tissue",y= "% of cells with expression") + scale_y_continuous(breaks=c(0, 100))+theme(legend.text=element_text(size=6),legend.title=element_text(size=6),legend.position='bottom')
+
+
+sc_values.df %>% gather(variable,value,-group_name) %>% filter(variable %in%  c("mean_exp_ot")) %>% ggplot(.,aes(variable,value %>% as.numeric,fill=group_name)) + geom_boxplot(outlier.shape = NA) +ggtitle("mean expression in other tissues") + labs(x="tissue",y= "mean expression in other tissues") +theme(legend.text=element_text(size=6),legend.title=element_text(size=6),legend.position='bottom')+ylim(c(0,0.25))
+
+sc_values.df %>% gather(variable,value,-mean_exp_ht, -group_name) %>% filter(variable %in%  c("var.in.ht"))  %>% mutate(mean_exp = cut(.$mean_exp_ht %>% as.numeric,breaks=c(0, 1, 2,3,4,5,6,10), include.lowest=TRUE)) %>% filter(mean_exp!="NA") %>%  ggplot(.,aes(mean_exp,value %>% as.numeric,fill=group_name)) + geom_boxplot(outlier.shape = NA) +ggtitle("Coefficient of variation for TATA and paused genes") + labs(x="Mean expression",y= "Coefficient of variation")+ylim(c(0,2.5))+theme(legend.text=element_text(size=6),legend.title=element_text(size=6))
+
+sc_values.df %>% gather(variable,value,-mean_exp_ht, -group_name) %>% filter(variable %in%  c("ng.freq.in.ht")) %>% mutate(mean_exp = cut(.$mean_exp_ht %>% as.numeric,breaks=c(0, 1, 2,3,4,5,6,10), include.lowest=TRUE)) %>% filter(mean_exp!="NA") %>%  ggplot(.,aes(mean_exp,value %>% as.numeric %>% {. * 100} ,fill=group_name)) + geom_boxplot(outlier.shape = NA) +ggtitle("% of cells with expression for in the highest-expressing tissue") + labs(x="Mean expression",y= "% of cells with expression")+ scale_y_continuous(breaks=c(0, 100))+theme(legend.text=element_text(size=6),legend.title=element_text(size=6))
+
+
+sc_values.df %>% gather(variable,value,-total_expression, -group_name)  %>% filter(variable %in%  c("ng.freq.in.ot")) %>% mutate(total_exp_g = cut(.$total_expression %>% as.numeric,breaks=c(0, 100, 250,500,1000,2000), include.lowest=TRUE)) %>% filter(total_exp_g!="NA") %>%  ggplot(.,aes(total_exp_g,value %>% as.numeric %>% {. * 100},fill=group_name)) + geom_boxplot(outlier.shape = NA) +ggtitle("% of cells with expression in the non-expressing tissue") + labs(x="total_expression",y= "% of cells with expression")+ scale_y_continuous(breaks=c(0, 100))+theme(legend.text=element_text(size=6),legend.title=element_text(size=6))
+
+loess_data.df<-calculate_expression_values_loess(sc_data.df)
+loess_data.df %>% ggplot(aes(mean_exp_ht,var.in.ht))+geom_point()+theme_cowplot()+ggtitle("coefficient of variation")
+loess_data.df %>% ggplot(aes(mean_exp_ht,var.in.ht_res))+geom_point()+theme_cowplot()+ggtitle("residual coefficient of variation")
+loess_data.df$group<-'others'
+loess_data.df$group[loess_data.df$gene %in% groups[[1]]]<-'0 tissues'
+loess_data.df$group[loess_data.df$gene %in% groups[[2]]]<-'5-6 tissues'
+loess_data.df$group[loess_data.df$gene %in% groups[[4]]]<-'Bjoern evelopmental paused'
+loess_data.df$group[loess_data.df$gene %in% groups[[3]]]<-'housekeeping'
+
+loess_data.df %>% ggplot(aes(group,var.in.ht_res,fill=group))+geom_boxplot(outlier.shape = NA)+theme_cowplot()+ggtitle("residual coefficient of variation")+ylim(c(-1,2.5))
+
+sc_values.df %>% write.csv(figure_path("Dataset_EV12_single_cell_variation_background.csv"))
+
+loess_data.df %>% write.csv(figure_path("Dataset_EV13_loess_fit.csv"))
+
+loess_data.df %>% {pairwise.wilcox.test(.$var.in.ht_res,g=loess_data.df$group)}
+```
+
+
+```{r based_on_length}
+
+
+readRDS("main_analysis/gene_length.rds") -> gene_length.df
+
+flybase_txs() %>% group_by(fb_gene_id) %>% summarize(fb_symbol=fb_symbol[1]) %>% dplyr::select(fb_gene_id,fb_symbol) %>% right_join(gene_length.df) %>% dplyr::select(gene=fb_symbol,width) %>% right_join(sc_values.df) -> sc_values_modified.df
+
+
+sc_values_modified.df %>% gather(variable,value,-mean_exp_ht, -group_name,-width) %>% filter(variable %in%  c("ng.freq.in.ht")) %>% mutate(width_group = cut(.$width %>% as.numeric,breaks=c(0, 1000, 5000,10000,100000), include.lowest=TRUE)) %>% filter(width!="NA") %>% ggplot(.,aes(width_group,value %>% as.numeric %>% {. * 100} ,fill=group_name)) + geom_boxplot(outlier.shape = NA) +ggtitle("% of cells with expression for in the highest-expressing tissue") + labs(x="width",y= "% of cells with expression")+ scale_y_continuous(breaks=c(0, 100))+theme(legend.text=element_text(size=6),legend.title=element_text(size=6))
+
+
+sc_values_modified.df %>% gather(variable,value,-mean_exp_ht, -group_name,-width) %>% filter(variable %in%  c("ng.freq.in.ot")) %>% mutate(width_group = cut(.$width %>% as.numeric,breaks=c(0, 1000, 5000,10000,100000), include.lowest=TRUE)) %>% filter(width!="NA") %>% ggplot(.,aes(width_group,value %>% as.numeric %>% {. * 100} ,fill=group_name)) + geom_boxplot(outlier.shape = NA) +ggtitle("% of cells with expression for in the non-expressing tissue") + labs(x="width",y= "% of cells with expression")+ scale_y_continuous(breaks=c(0, 100))+theme(legend.text=element_text(size=6),legend.title=element_text(size=6))
+```
+
+
+
+
+``` {r session_info_child, child="child_docs/session_info_child.Rmd"}
+```

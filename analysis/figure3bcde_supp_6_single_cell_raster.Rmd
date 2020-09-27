@@ -1,0 +1,130 @@
+```{r setup, echo=FALSE, message=FALSE, include=FALSE, error=FALSE}
+
+library(Seurat)
+library(cowplot)
+library(tidyr)
+library(dplyr)
+library(magrittr)
+library(RColorBrewer)
+
+# Output folder for this document
+options(knitr.figure_dir = "figure3bcde_supp6_single_cell_raster")
+
+knitr::opts_chunk$set(dev=c("png", "pdf"))
+source("shared/knitr_common.r")
+source("shared/granges_common.r")
+source("shared/flybase.r")
+
+```
+
+Look at changes in gene expression of Tata and paused genes in the single cell data
+
+```{r header_child, child="child_docs/header_child.Rmd"}
+```
+
+
+```{r plot, fig.width=14, fig.height=10,dev=c("png","CairoPDF")}
+
+wt<-readRDS("figure1_clusters_plot/embryo_wt_single_cell_reannotated.RData")
+
+t(wt@data) %>% as.matrix %>%  as.data.frame() -> data.df
+
+readRDS("other_analysis/late_wide.df.rds") ->late_wide
+
+late_wide %>% filter(above_bg_tissues ==0) %>% dplyr::select(fb_gene_id) -> tata_genes.df 
+
+late_wide %>% filter(above_bg_tissues >4) %>% dplyr::select(fb_gene_id)  -> paused_genes.df
+
+flybase_txs() %>% as.data.frame() ->fb_txs
+
+tata_genes.df %<>% merge(fb_txs)
+
+paused_genes.df %<>% merge(fb_txs)
+
+```
+```{r calculate values for Tata genes}
+data_tata.df <- data.df[,colnames(data.df) %in% tata_genes.df$fb_symbol]
+
+data_tata.df$cell<-rownames(data.df)
+
+data_tata.df$condition<-sub("_.*", "", data_tata.df$cell)
+
+data_tata.df$cell<-sub(".*_", "", data_tata.df$cell)
+
+data_tata.df %<>%  mutate( group = wt@ident)
+
+data_tata.df %>% gather(gene,expression,-cell,-condition,-group) -> data_tata.df_long
+
+data_tata.df_long %>% group_by(group,gene) %>% mutate(total = length(cell),median_ng_expression=median(expression[expression>0]) %>% is.na %>% ifelse(0,median(expression[expression>0])),ng_freq=(sum(expression>0))/length(expression), sd = (var((expression[expression>0])^2))^0.5,mean_exp = mean((expression[expression>0])^2) %>% is.na %>% ifelse(0,mean((expression[expression>0])^2)), max_exp = max(expression),total_expression = sum(expression))->exp_data_tata.df
+ 
+
+exp_data_tata.df %<>% group_by(gene) %>% mutate(exp_group = group[which(expression==max(expression))[1]],expression_in_ht = median_ng_expression[which(group==exp_group)[1]] ,ng_freq_in_ht = ng_freq[which(group==exp_group)[1]], var.in.ht = sd[which(group==exp_group)[1]] , mean_exp_ht = mean_exp[which(group==exp_group)[1]], ng_freq_in_ot=weighted.mean(ng_freq[which(max_exp < (sort(max_exp,decreasing =FALSE) %>% unique)[5])],total[which(max_exp < (sort(max_exp,decreasing =FALSE) %>% unique)[5])]),total_expression = total_expression[which(group==exp_group)[1]])
+
+exp_data_tata.df %>%  group_by(gene) %>% dplyr::summarize(expression.in.ht=expression_in_ht[1] ,ng.freq.in.ht= ng_freq_in_ht[1] , var.in.ht = var.in.ht[1]/mean_exp_ht[1] , mean_exp_ht = mean_exp_ht[1],ng.freq.in.ot=ng_freq_in_ot[1], total_expression = total_expression[1])  -> wide_TATA.df
+
+wide_TATA.df[-1] %<>% mutate_if(is.character,as.numeric)
+
+wide_TATA.df[!(rowSums(is.na(wide_TATA.df))>0),] -> wide_m_TATA.df
+
+```
+
+```{r calculate values for Paused genes}
+data_paused.df <- data.df[,colnames(data.df) %in% paused_genes.df$fb_symbol]
+
+data_paused.df$cell<-rownames(data.df)
+
+data_paused.df$condition<-sub("_.*", "", data_paused.df$cell)
+
+data_paused.df$cell<-sub(".*_", "", data_paused.df$cell)
+
+data_paused.df %<>%  mutate( group = wt@ident)
+
+data_paused.df %>% gather(gene,expression,-cell,-condition,-group) -> data_paused.df_long
+
+data_paused.df_long %>% group_by(group,gene) %>% mutate(total = length(cell),median_ng_expression=median(expression[expression>0]) %>% is.na %>% ifelse(0,median(expression[expression>0])),ng_freq=(sum(expression>0))/length(expression), sd = (var((expression[expression>0])^2))^0.5,mean_exp = mean((expression[expression>0])^2) %>% is.na %>% ifelse(0,mean((expression[expression>0])^2)), max_exp = max(expression),total_expression = sum(expression))->exp_data_paused.df
+
+
+exp_data_paused.df %<>% group_by(gene) %>% mutate(exp_group = group[which(expression==max(expression))[1]],expression_in_ht = median_ng_expression[which(group==exp_group)[1]] ,ng_freq_in_ht = ng_freq[which(group==exp_group)[1]], var.in.ht = sd[which(group==exp_group)[1]], mean_exp_ht = mean_exp[which(group==exp_group)[1]],ng_freq_in_ot=weighted.mean(ng_freq[which(max_exp < (sort(max_exp,decreasing =FALSE) %>% unique)[5])],total[which(max_exp < (sort(max_exp,decreasing =FALSE) %>% unique)[5])]),total_expression = total_expression[which(group==exp_group)[1]])
+
+exp_data_paused.df %>%  group_by(gene) %>% dplyr::summarize(expression.in.ht=expression_in_ht[1] ,ng.freq.in.ht= ng_freq_in_ht[1] ,  var.in.ht = var.in.ht[1]/mean_exp_ht[1] , mean_exp_ht = mean_exp_ht[1],ng.freq.in.ot=ng_freq_in_ot[1], total_expression = total_expression[1])  -> wide_paused.df
+
+wide_paused.df[-1] %<>% mutate_if(is.character,as.numeric)
+
+wide_paused.df[!(rowSums(is.na(wide_paused.df))>0),] -> wide_m_paused.df
+
+rbind(wide_m_TATA.df[c(3,6)] %>% mutate(group = 'TATA'),wide_m_paused.df[c(3,6)] %>% mutate(group = 'paused')) %>% {.$group <- factor(.$group,c("TATA","paused"));.}  %>% gather(variable,value,-group) %>% ggplot(.,aes(variable,value,fill=group)) + geom_boxplot(outlier.shape = NA) +ggtitle("% of cells with expression") + labs(x="tissue",y= "% of cells with expression")+scale_fill_manual(values=c("#F2662E","#2A388F"))
+
+rbind(wide_m_TATA.df[c(3,6)] %>% mutate(group = 'TATA'),wide_m_paused.df[c(3,6)] %>% mutate(group = 'paused')) %>% {.$group <- factor(.$group,c("TATA","paused"));.}  %>% gather(variable,value,-group) %>% filter(variable == "ng.freq.in.ht") %>% {pairwise.wilcox.test(.$value,.$group)}
+
+rbind(wide_m_TATA.df[c(3,6)] %>% mutate(group = 'TATA'),wide_m_paused.df[c(3,6)] %>% mutate(group = 'paused')) %>% {.$group <- factor(.$group,c("TATA","paused"));.}  %>% gather(variable,value,-group) %>% filter(variable == "ng.freq.in.ot") %>% {pairwise.wilcox.test(.$value,.$group)}
+
+````
+
+```{r raster_plots, fig.width=14, fig.height=10} 
+
+
+#rbind(wide_m_paused.df %>% mutate(group = 'paused'), wide_m_TATA.df %>% mutate(group = 'TATA')) %>% filter(group == "paused" & mean_exp_ht <=6) %>% ggplot(aes(mean_exp_ht,ng.freq.in.ht))+stat_density_2d(geom = 'raster',aes(fill = ..density..), contour =FALSE) + scale_fill_gradient(low = 'white',high = '#2A388F')+xlim(0, 2) + ylim(0,1)
+
+#rbind(wide_m_paused.df %>% mutate(group = 'paused'), wide_m_TATA.df %>% mutate(group = 'TATA')) %>% filter(group == "paused" & mean_exp_ht <=6) %>% ggplot(aes(mean_exp_ht,ng.freq.in.ht))+geom_density_2d(color = '#2A388F') +xlim(0, 2) + ylim(0,1)
+
+#rbind(wide_m_paused.df %>% mutate(group = 'paused'), wide_m_TATA.df %>% mutate(group = 'TATA')) %>% filter(group == "TATA" & mean_exp_ht <=6) %>% ggplot(aes(mean_exp_ht,ng.freq.in.ht))+stat_density_2d(geom = 'raster',aes(fill = ..density..), contour =FALSE) + scale_fill_gradient(low = 'white',high = '#F2662E')+xlim(0, 2) + ylim(0,1)
+
+#rbind(wide_m_paused.df %>% mutate(group = 'paused'), wide_m_TATA.df %>% mutate(group = 'TATA')) %>% filter(group == "TATA" & mean_exp_ht <=6) %>% ggplot(aes(mean_exp_ht,ng.freq.in.ht))+geom_density_2d(color = '#F2662E') +xlim(0, 2) + ylim(0,1)
+
+
+````
+
+```{r plot boxplots for supp}
+
+
+rbind(wide_m_paused.df[c(3,5)] %>% mutate(group = 'paused'), wide_m_TATA.df[c(3,5)] %>% mutate(group = 'TATA')) %>% gather(variable,value,-mean_exp_ht, -group)  %>% mutate(mean_exp = cut(.$mean_exp_ht,breaks=c(0, 1, 2,3,4,5,6,10), include.lowest=TRUE)) %>% {.$group <- factor(.$group,c("TATA","paused"));.} %>% filter(mean_exp!="NA") %>%  ggplot(.,aes(mean_exp,value,fill=group)) + geom_boxplot() +ggtitle("% of cells with expression for in the highest-expressing tissue") + labs(x="Mean expression",y= "% of cells with expression for ")+ylim(c(0,1))+scale_fill_manual(values=c("#F2662E","#2A388F"))
+
+rbind(wide_m_paused.df[c(6,7)] %>% mutate(group = 'paused'), wide_m_TATA.df[c(6,7)] %>% mutate(group = 'TATA')) %>% gather(variable,value,-total_expression, -group)  %>% mutate(total_exp_g = cut(.$total_expression,breaks=c(0, 100, 250,500,1000,2000), include.lowest=TRUE)) %>% {.$group <- factor(.$group,c("TATA","paused"));.} %>% filter(total_exp_g!="NA") %>%  ggplot(.,aes(total_exp_g,value,fill=group)) + geom_boxplot() +ggtitle("% of cells with expression in the non-expressing tissue") + labs(x="total_expression",y= "% of cells with expression for ")+ylim(c(0,1))+scale_fill_manual(values=c("#F2662E","#2A388F"))
+
+rbind(wide_m_paused.df[c(5,4)] %>% mutate(group = 'paused'), wide_m_TATA.df[c(5,4)] %>% mutate(group = 'TATA')) %>% gather(variable,value,-mean_exp_ht, -group)  %>% mutate(mean_exp = cut(.$mean_exp_ht,breaks=c(0, 1, 2,3,4,5,6,10), include.lowest=TRUE)) %>% {.$group <- factor(.$group,c("TATA","paused"));.} %>% filter(mean_exp!="NA") %>%  ggplot(.,aes(mean_exp,value,fill=group)) + geom_boxplot() +ggtitle("Coefficient of variation for TATA and paused genes") + labs(x="Mean expression",y= "Coefficient of variation")+ylim(c(0,2.5))+scale_fill_manual(values=c("#F2662E","#2A388F"))
+
+````
+
+
+``` {r session_info_child, child="child_docs/session_info_child.Rmd"}
+```

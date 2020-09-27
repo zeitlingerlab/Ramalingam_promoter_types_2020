@@ -1,0 +1,79 @@
+
+```{r "knitr config", cache = FALSE, include=FALSE}
+
+knitr::opts_chunk$set(dev=c("png", "CairoPDF"))
+options(knitr.figure_dir = "figure_s1_plot/")
+source("shared/knitr_common.r")
+
+```
+
+```{r setup}
+
+library(Seurat)
+library(cowplot)
+library(tidyr)
+library(dplyr)
+library(magrittr)
+library(RColorBrewer)
+library(mccr)
+```
+
+Annotate the clusters based on MCC correlation and manual identification with markers and replot TSNE projection 
+
+```{r header_child, child="child_docs/header_child.Rmd"}
+```
+
+
+```{r PCA_plot_clusters,fig.width=24, fig.height=20,dev=c("png","CairoPDF")}
+wt<-readRDS("./figure1_clusters_plot/embryo_wt_single_cell_reannotated.RData")
+
+PCA_plot_clusters<-PCAPlot(object = wt, do.return = TRUE, pt.size = 0.5,do.label=TRUE,no.legend = TRUE,no.axes = FALSE)
+
+
+PCA_plot_clusters %>% ggplot_build() ->p
+
+p$data[[3]]$size<-3
+
+p %>% ggplot_gtable -> PCA_plot_clusters
+```
+
+```{r PCA_plot_rep,fig.width=24, fig.height=20,dev=c("png","CairoPDF")}
+
+wt@meta.data$rep<-'rep1'
+wt@meta.data$rep[wt@cell.names %>% grep('2',.)]<-'rep2'
+
+PCA_plot_rep<-PCAPlot(object = wt, group.by = "rep" ,do.return = TRUE, pt.size =0.5,no.axes = FALSE,cols.use = c("#6d5b20","#502fa3"))
+
+```
+
+```{r rep_correlation,fig.width=24, fig.height=20,dev=c("png","CairoPDF")}
+sum(wt@meta.data$rep == "rep1")
+
+wt@raw.data[,1:1815]  %>%  as.matrix %>% rowSums() ->rep1_expression
+wt@raw.data[,1816:3311]  %>%  as.matrix %>% rowSums() ->rep2_expression
+
+cor(rep1_expression ,rep2_expression) -> cor.coef
+
+data.frame(rep1_expression ,rep2_expression) %>% ggplot(aes(log2(rep1_expression),log2(rep2_expression))) ->g
+
+g+geom_point()+annotate("text", label = paste0('cor.coef=',cor.coef %>% round(.,2)), x = 4, y = 1, size = 6, colour = "black") ->rep_correlation
+
+rep_correlation
+```
+
+```{r nUMI_nGene,fig.width=24, fig.height=20,dev=c("png","CairoPDF")}
+
+VlnPlot(wt,features.plot = c("nUMI","nGene"),group.by = 'condition',cols.use = '#793a8e') -> nUMI_nGene
+
+nUMI_nGene
+
+```
+
+```{r figures1,fig.width=24, fig.height=20,dev=c("png","CairoPDF")}
+
+plot_grid(rep_correlation,PCA_plot_rep,nUMI_nGene,PCA_plot_clusters,labels = c("S1A)","S1B)","S1C)","S1D)"),scale = 0.8)
+
+```
+
+``` {r session_info_child, child="child_docs/session_info_child.Rmd"}
+```

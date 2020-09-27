@@ -1,0 +1,6 @@
+condition,factor,bw,color
+epidermis,ATAC,../bw/rpm/Epidermis_7021_INTACT_14_17h_ATAC_1.bam_from0to100_rpm.bw,"""#664917"""
+gut,ATAC,../bw/rpm/Gut_INTACT_14_17h_ATAC_1.bam_from0to100_rpm.bw,"""#664917"""
+muscle,ATAC,../bw/rpm/Muscle_mef2_INTACT_14_17h_ATAC_1.bam_from0to100_rpm.bw,"""#664917"""
+neuron,ATAC,../bw/rpm/Neuron_elav_INTACT_14_17h_ATAC_1.bam_from0to100_rpm.bw,"""#664917"""
+trachea,ATAC,../bw/rpm/Trachea_INTACT_14_17h_ATAC_1.bam_from0to100_rpm.bw,"""#664917"""

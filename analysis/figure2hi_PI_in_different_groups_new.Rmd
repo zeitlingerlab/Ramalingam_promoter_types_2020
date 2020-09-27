@@ -1,0 +1,152 @@
+``` {r setup, echo=FALSE, message=FALSE, include=FALSE, error=FALSE}
+library(dplyr)
+library(tidyr)
+library(magrittr)
+library(pander)
+library(cowplot)
+# Output folder for this document
+options(knitr.figure_dir = "figure2hi_PI_in_different_groups_new")
+
+source("shared/knitr_common.r")
+source("shared/granges_common.r")
+source("shared/flybase.r")
+cores_to_use<-16;
+path_to_data_1<-"../bw/";
+
+```
+
+# Calculating PI enrichments
+
+``` {r header_child, child="child_docs/header_child.Rmd"}
+```
+
+## Samples overview
+
+We will calculate the PI using all the four 14-17hrs samples
+``` {r samples_table}
+samples.df <- read.csv("data/figure2hi_PI.csv", stringsAsFactors=FALSE)
+samples.df %>% pander
+```
+
+## load the samples
+
+``` {r functions, include=FALSE}
+
+locate_bigwig <- function(name) {
+    path1 <- file.path(path_to_data_1, name)
+    if(file.exists(path1)) return(path1)
+  path2 <- file.path(path_to_data_2, name)
+  if(file.exists(path2)) return(path2)
+  stop("Cannot find bigwig: ", name)
+}
+
+enrichments_for_sample <- function(i, samples.df, txs.gr) {
+  sample.bw <- locate_bigwig(samples.df$ip[i])
+  wce.bw    <- locate_bigwig(samples.df$wce[i])
+
+  label <- samples.df$label[i]
+  factor_type <- samples.df$factor[i]
+  window_location <- samples.df$window[i]
+  regions.gr <- resize(txs.gr,fix="start", width=1) 
+  regions.gr <- resize(regions.gr, fix="start" ,width=samples.df$window_downstream[i])
+  regions.gr <- resize(regions.gr, fix="end" ,width=(samples.df$window_downstream[i]-samples.df$window_upstream[i]))
+  
+  mcols(txs.gr)$start_r<-start(regions.gr)
+  mcols(txs.gr)$end_r<-end(regions.gr)
+  mcols(txs.gr)$region_ip  <- regionSums(regions.gr, sample.bw)
+  mcols(txs.gr)$region_wce <- regionSums(regions.gr, wce.bw)
+
+  mcols(txs.gr)$ip_total <- total_signal(sample.bw)
+  mcols(txs.gr)$wce_total <- total_signal(wce.bw)
+
+  mcols(txs.gr)$region_wce_min_coverage <- regionMins(regions.gr, wce.bw)
+
+  mcols(txs.gr)$label <- label
+  mcols(txs.gr)$factor <- factor_type
+  mcols(txs.gr)$window_location <- window_location
+  txs.gr
+}
+
+txs.gr <- flybase_txs_granges() %>% filter_chrs
+
+  pol_data.df <- 1:nrow(samples.df) %>%
+                 mclapply(enrichments_for_sample, samples.df, txs.gr, mc.cores=cores_to_use, mc.preschedule=FALSE) %>%
+                 lapply(as.data.frame) %>%
+                 bind_rows 
+  pol_data.df
+
+
+```
+
+## Calculate enrichments
+
+Before calculating enrichment, we floor the WCE signal for each region at the median WCE signal level among all transcripts.
+
+``` {r calculate_enrichments, include=FALSE}
+
+pol_enrichments.df <- pol_data.df %>% 
+                      group_by(label, factor, window_location) %>%
+                      mutate(median_region_wce = median(region_wce))
+
+pol_enrichments.df %<>% transform(enrichment = log2((region_ip / ip_total) / (pmax(region_wce, median_region_wce) / wce_total)))
+
+pol_enrichments.df<-pol_enrichments.df[is.finite(pol_enrichments.df$enrichment),]
+
+
+late_by_group.lst <- readRDS("other_analysis_new/lst_7_expanded_tx.lst.rds")
+
+PI_at_genes.df <-	pol_enrichments.df %>% mutate(label= paste0(label,'.',window_location)) %>% 
+						filter( fb_tx_id %in% unlist(late_by_group.lst), factor == 'polii') %>%
+						dplyr::select(fb_tx_id, fb_gene_id, fb_symbol, enrichment,label) %>%
+						spread(key=label, value= enrichment) %>%
+						mutate(late.tss=rowMeans(cbind(late_1.tss,late_2.tss)),late.tu=rowMeans(cbind(late_1.tu,late_2.tu)),PI=late.tss-late.tu) %>%
+						dplyr::select(-late_1.tss,-late_2.tss,-late_1.tu,-late_2.tu,)
+
+PI_at_genes.df %<>% {.[complete.cases(.),]}
+
+
+```
+
+## Save results
+
+``` {r save_results,  include=FALSE}
+
+saveRDS(PI_at_genes.df, file=figure_path("PI_at_late_genes.df.rds"))
+write.csv(PI_at_genes.df,file=figure_path("Dataset_EV13_pausing_index.csv"))
+
+````
+## Plot the results
+```{r PI_plots, dev=c("png","pdf"),fig.width=14, fig.height=10}
+
+PI_plot <- function(groups, PI_at_genes) {
+  PI.df <- groups %>%
+            lapply(function(gene_ids) {
+              subset(PI_at_genes.df, fb_gene_id %in% gene_ids)
+            }) %>%
+            bind_rows(.id="group_name")
+  g <- ggplot(PI.df, aes(x=group_name, y=PI, fill=group_name)) +
+       geom_boxplot(notch=FALSE) + 
+       theme_bw() + 
+       labs(x="", y="PI (log2)") +
+    theme(panel.grid.minor=element_blank(),
+      axis.text.x=element_text(angle=45, vjust=1, hjust=1, size = 16),axis.text.y=element_text(size = 16))+ theme_cowplot()+
+    ylim(c(-1,6))
+
+  list(plot=g,data=PI.df)
+}
+
+{readRDS("other_analysis_new/lst_2_expanded.lst.rds") %>% PI_plot(PI_at_genes.df)}$plot
+{readRDS("other_analysis_new/lst_4_expanded.lst.rds") %>% PI_plot(PI_at_genes.df)}$plot
+{readRDS("other_analysis_new/lst_7_expanded.lst.rds") %>% PI_plot(PI_at_genes.df)}$plot
+
+
+
+```
+## Stats
+```{r stats}
+#wilcox.test(PI_at_late_genes.df %>% filter(tissue_group4 == "0 tissues") %>% `$`(PI),PI_at_late_genes.df %>% filter(tissue_group4 == "5-6 tissues") %>% `$`(PI))
+```
+
+
+``` {r session_info_child, child="child_docs/session_info_child.Rmd"}
+```

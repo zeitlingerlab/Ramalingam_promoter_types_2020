@@ -1,0 +1,64 @@
+
+```{r "knitr config", cache = FALSE, include=FALSE}
+
+knitr::opts_chunk$set(dev=c("png", "pdf"))
+options(knitr.figure_dir = "figure1_single_cell_wt/")
+source("shared/knitr_common.r")
+
+```
+
+```{r setup}
+
+library(Seurat)
+library(cowplot)
+library(tidyr)
+library(dplyr)
+library(magrittr)
+library(RColorBrewer)
+
+```
+
+
+
+Normalize and process wt single cell data 14-14.5hrs from two replicates
+```{r header_child, child="child_docs/header_child.Rmd"}
+```
+
+
+```{r plot, fig.width=14, fig.height=10}
+
+
+wt.data<-Read10X(data.dir = "../pipeline/wt/wt/outs/filtered_gene_bc_matrices_mex/dm6/")
+
+
+
+wt <- CreateSeuratObject(raw.data = wt.data)
+wt <- NormalizeData(object = wt)
+wt <- ScaleData(object = wt)
+wt <- FindVariableGenes(object = wt, do.plot = FALSE)
+
+
+wt@meta.data[, "condition"] <- "wt"
+
+wt=RunPCA(wt,do.print=FALSE)
+PCAPlot(wt,1,2,pt.size = 2)
+
+#wt=jackStraw(wt,num.replicate = 200,do.print = FALSE)
+#JackStrawPlot(wt,PCs = 1:15)
+
+
+wt = RunTSNE(object = wt, dims.use = 1:20, 
+    do.fast = TRUE)
+wt = FindClusters(object = wt, reduction.type = "pca", dims.use = 1:20, 
+    save.SNN = TRUE)
+TSNEPlot(object = wt, do.return = TRUE, pt.size = 0.5)
+
+
+
+saveRDS(wt,file=figure_path("embryo_wt_single_cell.RData"))
+
+````
+
+
+``` {r session_info_child, child="child_docs/session_info_child.Rmd"}
+```
